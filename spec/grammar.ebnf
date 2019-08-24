@@ -1,0 +1,120 @@
+(*
+    Protocol Buffers proto file text grammar
+
+    This document describes a context free protobuf grammar in EBNF format.
+    It does not differentiate between proto2 and proto3 syntax.
+
+    Some things are allowed in this grammar that are not allowed in proto files.
+    For example, the "syntax" statement can be used with any string literal.
+*)
+
+any = ? * ?; (* anything matches here, check usages for any specific exceptions *)
+whitespace_char = " " | "\n" | "\t" | "\r" | "\v" | "\f" ;
+line_comment = "//" , { any - "\n" } , "\n" ;
+block_comment = "/*" , { any - "*/" } , "*/" ;
+whitespace = { whitespace_char | line_comment | block_comment } ;
+
+uppercase = 
+    "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | 
+    "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | 
+    "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | 
+    "Y" | "Z"
+;
+
+lowercase = 
+    "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | 
+    "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | 
+    "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | 
+    "y" | "z"
+;
+
+letter = uppercase | lowercase ;
+
+decimal_digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+octal_digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+hex_digit = 
+    decimal_digit | 
+    "A" | "B" | "C" | "D" | "E" | "F" | 
+    "a" | "b" | "c" | "d" | "e" | "f"
+;
+
+identifier = letter , { letter | decimal_digit | "_" } ;
+full_identifier = identifier , { "." , identifier } ;
+
+type_name = ["."] , full_identifier ;
+
+group_identifier = uppercase , { letter | decimal_digit | "_" } ;
+
+decimal_literal = ("1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") , { decimal_digit } ;
+octal_literal = "0" , { octal_literal } ;
+hex_literal = "0" , ("x" | "X") , hex_digit , { hex_digit } ;
+int_literal = decimal_literal | octal_literal | hex_literal ;
+
+decimal_digits = decimal_digit , { decimal_digit } ;
+exponent = ("e" | "E") , ["+" | "-"] , decimal_digits ;
+float_literal = ((decimal_digits , "." , [decimal_digits] , [exponent]) | (decimal_digits , exponent) | ("." , decimal_digits , [exponent])) | "inf" | "nan" ;
+
+bool_literal = "true" | "false" ;
+
+hex_escape = "\" , ("x" | "X") , hex_digit , hex_digit ;
+octal_escape = "\" , octal_digit , octal_digit , octal_digit ;
+char_escape = "\" , ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | '"' ) ;
+char = hex_escape | octal_escape | char_escape | ? /[^\0\n\\]/ ? ;
+string_literal = ('"' , { char } , '"') | ("'" , { char } , "'") ;
+
+end_statement = ";" ;
+
+aggregate_literal = "{" , { identifier , ":" , literal } , "}" ; (* whitespace and or comments seperate each field value *)
+literal = full_identifier | (["-" | "+"] , int_literal) | (["-" | "+"] , float_literal) | string_literal | bool_literal | aggregate_literal ;
+
+(* after this point, unless specified, concatinated terminals can be seperated by whitespace and or comments, as defined at the top of this file *)
+
+syntax = "syntax" , "=" , string_literal , end_statement ;
+import = "import" , ["weak" | "public"] , "=" , string_literal , end_statement ;
+package = "package" , full_identifier , end_statement ;
+
+option_name = (identifier | "(" , full_identifier , ")") , {"." , identifier } ;
+option = "option" , option_name , "=" , literal , end_statement ;
+
+short_option = option_name , "=" , literal ;
+short_options = short_option , { "," , short_option } ;
+
+field_label = "optional" | "repeated" | "required" ;
+field_type = 
+    "double" | "float" | "int32" | "int64" | "uint32" | "uint64" |
+    "sint32" | "sint64" | "fixed32" | "fixed64" | "sfixed32" | "sfixed64" |
+    "bool" | "string" | "bytes" | type_name
+;
+group = [field_label] , "group" , group_identifier , "=" , int_literal , ["[" , short_options , "]"] , message_body ;
+field = group | ([field_label] , field_type , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement) ;
+
+oneof_field = field_type , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
+oneof = "oneof" , identifier , "{" , { oneof_field | option | end_statement } , "}" ;
+
+key = 
+    "int32" | "int64" | "uint32" | "uint64" |
+    "sint32" | "sint64" | "fixed32" | "fixed64" | "sfixed32" | "sfixed64" |
+    "bool" | "string"
+;
+map = "map" , "<" , key , "," field_type , ">" , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
+
+range = int_literal , ["to" , (int_literal | "max")] ;
+ranges = range , { "," , range } ;
+extensions = "extensions" , ranges , ["[" , short_options , "]"] , end_statement ;
+
+field_names = identifier , { "," , identifier } ;
+reserved = "reserved" , (ranges | field_names) , end_statement ;
+
+enum_value = identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
+enum = "enum" , identifier , "{" , { option | enum_value | end_statement } , "}" ;
+
+message_body = "{" , { field | enum | message | extend | extensions | group | option | oneof | map | reserved | end_statement } , "}" ;
+message = "message" , identifier , message_body ;
+
+extend = "extend" , identifier , "{" , { field | group | end_statement } , "}" ;
+
+rpc = "rpc" , identifier , "(" , ["stream"] , type_name , ")" , "returns" , "(" , ["stream"] , type_name , ")" , (("{" , { option , end_statement } , "}") | end_statement) ;
+stream = "stream" , identifier , "(" , type_name , "," , type_name , ")" , (("{" , { option , end_statement } , "}") | end_statement) ;
+service = "service" , identifier , "{" , { option , rpc , stream , end_statement } , "}" ;
+
+file = [syntax] , { import | package | option | message | enum | extend | service | end_statement } ;
