@@ -86,7 +86,7 @@ field_type =
     "bool" | "string" | "bytes" | type_name
 ;
 group = [field_label] , "group" , group_identifier , "=" , int_literal , ["[" , short_options , "]"] , message_body ;
-field = group | ([field_label] , field_type , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement) ;
+field = [field_label] , field_type , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
 
 oneof_field = field_type , identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
 oneof = "oneof" , identifier , "{" , { oneof_field | option | end_statement } , "}" ;
