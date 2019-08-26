@@ -105,8 +105,8 @@ extensions = "extensions" , ranges , ["[" , short_options , "]"] , end_statement
 field_names = identifier , { "," , identifier } ;
 reserved = "reserved" , (ranges | field_names) , end_statement ;
 
-enum_value = identifier , "=" , int_literal , ["[" , short_options , "]"] , end_statement ;
-enum = "enum" , identifier , "{" , { option | enum_value | end_statement } , "}" ;
+enum_value = identifier , "=" , ["-"] , int_literal , ["[" , short_options , "]"] , end_statement ;
+enum = "enum" , identifier , "{" , { option | enum_value | reserved | end_statement } , "}" ;
 
 message_body = "{" , { field | enum | message | extend | extensions | group | option | oneof | map | reserved | end_statement } , "}" ;
 message = "message" , identifier , message_body ;
