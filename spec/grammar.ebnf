@@ -70,7 +70,7 @@ literal = full_identifier | (["-" | "+"] , int_literal) | (["-" | "+"] , float_l
 (* after this point, unless specified, concatinated terminals can be seperated by whitespace and or comments, as defined at the top of this file *)
 
 syntax = "syntax" , "=" , string_literal , end_statement ;
-import = "import" , ["weak" | "public"] , "=" , string_literal , end_statement ;
+import = "import" , ["weak" | "public"] , string_literal , end_statement ;
 package = "package" , full_identifier , end_statement ;
 
 option_name = (identifier | "(" , full_identifier , ")") , {"." , identifier } ;
