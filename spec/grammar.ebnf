@@ -61,19 +61,27 @@ octal_escape = "\" , octal_digit , octal_digit , octal_digit ;
 char_escape = "\" , ( "a" | "b" | "f" | "n" | "r" | "t" | "v" | "\" | "'" | '"' ) ;
 char = hex_escape | octal_escape | char_escape | ? /[^\0\n\\]/ ? ;
 string_literal = ('"' , { char } , '"') | ("'" , { char } , "'") ;
+strings_literal = string_literal , { string_literal } ; (* whitespace and or comments can seperate each string *)
 
 end_statement = ";" ;
 
-aggregate_literal = "{" , { identifier , ":" , literal } , "}" ; (* whitespace and or comments seperate each field value *)
-literal = full_identifier | (["-" | "+"] , int_literal) | (["-" | "+"] , float_literal) | string_literal | bool_literal | aggregate_literal ;
+text_bool_literal = bool_literal | "True" | "False" | "t" | "f" ;
+text_message = ("{" , { text_field , [";" | ","] } , "}") | ("<" , { text_field , [";" | ","] } , ">") ; (* whitespace and or comments seperate each field value *)
+text_literal = full_identifier | (["-" | "+"] , int_literal) | (["-" | "+"] , float_literal) | string_literal | text_bool_literal | text_message ;
+text_value = ("[" , [text_literal , { "," , text_literal }] , "]") | text_literal;
+text_field = (("[" , full_identifier , "]") | identifier) , [":"] , text_value ;
+
+aggregate_literal = "{" , { text_field , [";" | ","] } , "}" ; 
+literal = full_identifier | (["-" | "+"] , int_literal) | (["-" | "+"] , float_literal) | strings_literal | bool_literal | aggregate_literal ;
 
 (* after this point, unless specified, concatinated terminals can be seperated by whitespace and or comments, as defined at the top of this file *)
 
-syntax = "syntax" , "=" , string_literal , end_statement ;
-import = "import" , ["weak" | "public"] , string_literal , end_statement ;
+syntax = "syntax" , "=" , strings_literal , end_statement ;
+import = "import" , ["weak" | "public"] , strings_literal , end_statement ;
 package = "package" , full_identifier , end_statement ;
 
-option_name = (identifier | "(" , full_identifier , ")") , {"." , identifier } ;
+name_part = identifier | ("(" , full_identifier , ")") ;
+option_name = name_part , {"." , name_part } ;
 option = "option" , option_name , "=" , literal , end_statement ;
 
 short_option = option_name , "=" , literal ;
@@ -114,7 +122,6 @@ message = "message" , identifier , message_body ;
 extend = "extend" , identifier , "{" , { field | group | end_statement } , "}" ;
 
 rpc = "rpc" , identifier , "(" , ["stream"] , type_name , ")" , "returns" , "(" , ["stream"] , type_name , ")" , (("{" , { option , end_statement } , "}") | end_statement) ;
-stream = "stream" , identifier , "(" , type_name , "," , type_name , ")" , (("{" , { option , end_statement } , "}") | end_statement) ;
-service = "service" , identifier , "{" , { option , rpc , stream , end_statement } , "}" ;
+service = "service" , identifier , "{" , { option , rpc , end_statement } , "}" ;
 
 file = [syntax] , { import | package | option | message | enum | extend | service | end_statement } ;
